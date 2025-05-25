@@ -16,12 +16,12 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/c
 
 const teams = [
   {
-    name: "Acme Inc",
+    name: "Task Fusion",
     logo: "🏢",
     plan: "Enterprise",
   },
   {
-    name: "Acme Corp.",
+    name: "Task Fusion Corp.",
     logo: "🏭",
     plan: "Startup",
   },
