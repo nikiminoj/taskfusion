@@ -1,25 +1,29 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Plus, MoreHorizontal } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Subtask } from "@/server/db/schema"
+import { fetchTasksByProjectId } from "@/lib/api"
 
 interface Task {
   id: string
   title: string
   description: string
-  priority: "low" | "medium" | "high"
+  status: "todo" | "inprogress" | "review" | "done"
+ dueDate: string | null
+  projectId: string
+  subtasks: Subtask[]
   assignee: {
     name: string
     avatar: string
     initials: string
   }
   labels: string[]
-  dueDate: string
 }
 
 interface Column {
@@ -28,97 +32,7 @@ interface Column {
   tasks: Task[]
 }
 
-const initialColumns: Column[] = [
-  {
-    id: "todo",
-    title: "To Do",
-    tasks: [
-      {
-        id: "1",
-        title: "Design user onboarding flow",
-        description: "Create wireframes and mockups for the user registration process",
-        priority: "high",
-        assignee: {
-          name: "Sarah Chen",
-          avatar: "/placeholder.svg?height=32&width=32",
-          initials: "SC",
-        },
-        labels: ["Design", "UX"],
-        dueDate: "Dec 15",
-      },
-      {
-        id: "2",
-        title: "Set up CI/CD pipeline",
-        description: "Configure automated testing and deployment",
-        priority: "medium",
-        assignee: {
-          name: "Mike Johnson",
-          avatar: "/placeholder.svg?height=32&width=32",
-          initials: "MJ",
-        },
-        labels: ["DevOps", "Backend"],
-        dueDate: "Dec 18",
-      },
-    ],
-  },
-  {
-    id: "inprogress",
-    title: "In Progress",
-    tasks: [
-      {
-        id: "3",
-        title: "Implement authentication API",
-        description: "Build JWT-based authentication system",
-        priority: "high",
-        assignee: {
-          name: "Alex Rodriguez",
-          avatar: "/placeholder.svg?height=32&width=32",
-          initials: "AR",
-        },
-        labels: ["Backend", "Security"],
-        dueDate: "Dec 20",
-      },
-    ],
-  },
-  {
-    id: "review",
-    title: "Review",
-    tasks: [
-      {
-        id: "4",
-        title: "Mobile app testing",
-        description: "Comprehensive testing of mobile application features",
-        priority: "medium",
-        assignee: {
-          name: "Emily Davis",
-          avatar: "/placeholder.svg?height=32&width=32",
-          initials: "ED",
-        },
-        labels: ["Testing", "Mobile"],
-        dueDate: "Dec 16",
-      },
-    ],
-  },
-  {
-    id: "done",
-    title: "Done",
-    tasks: [
-      {
-        id: "5",
-        title: "Database schema design",
-        description: "Complete database structure for user management",
-        priority: "low",
-        assignee: {
-          name: "David Kim",
-          avatar: "/placeholder.svg?height=32&width=32",
-          initials: "DK",
-        },
-        labels: ["Database", "Backend"],
-        dueDate: "Dec 10",
-      },
-    ],
-  },
-]
+const statuses = ["todo", "inprogress", "review", "done"]
 
 interface TaskBoardProps {
   projectId: string
@@ -126,12 +40,33 @@ interface TaskBoardProps {
 
 export function TaskBoard({ projectId }: TaskBoardProps) {
   const [columns, setColumns] = useState(initialColumns)
+  const [loading, setLoading] = useState(true)
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive"
-      case "medium":
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setLoading(true)
+      try {
+        const tasks = await fetchTasksByProjectId(projectId)
+        const initialColumns: Column[] = statuses.map(status => ({
+          id: status,
+          title: status.charAt(0).toUpperCase() + status.slice(1),
+          tasks: tasks.filter(task => task.status === status)
+        }))
+        setColumns(initialColumns)
+      } catch (error) {
+        console.error("Error fetching tasks:", error)
+        // Handle error, maybe set an error state
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTasks()
+  }, [projectId])
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "inprogress":
         return "default"
       case "low":
         return "secondary"
@@ -142,6 +77,10 @@ export function TaskBoard({ projectId }: TaskBoardProps) {
 
   return (
     <div className="space-y-4">
+      {loading && <p>Loading tasks...</p>}
+      {!loading && columns.every(column => column.tasks.length === 0) && (
+        <p>No tasks found for this project.</p>
+      )}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Task Board</h2>
         <Button>
@@ -150,6 +89,7 @@ export function TaskBoard({ projectId }: TaskBoardProps) {
         </Button>
       </div>
 
+      {!loading && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {columns.map((column) => (
           <Card key={column.id} className="h-fit">
@@ -194,15 +134,26 @@ export function TaskBoard({ projectId }: TaskBoardProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={task.assignee.avatar || "/placeholder.svg"} alt={task.assignee.name} />
-                          <AvatarFallback className="text-xs">{task.assignee.initials}</AvatarFallback>
+                          {/* Assuming assignee data is available in the fetched tasks */}
+                          {/* <AvatarImage src={task.assignee.avatar || "/placeholder.svg"} alt={task.assignee.name} />
+                          <AvatarFallback className="text-xs">{task.assignee.initials}</AvatarFallback> */}
+                          <AvatarFallback className="text-xs">?</AvatarFallback> {/* Placeholder */}
                         </Avatar>
-                        <Badge variant={getPriorityColor(task.priority)} className="text-xs">
-                          {task.priority}
+                        <Badge variant={getStatusColor(task.status)} className="text-xs">
+                          {task.status}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground">{task.dueDate}</span>
+                      {task.dueDate && <span className="text-xs text-muted-foreground">{task.dueDate}</span>}
                     </div>
+
+                    {task.subtasks && task.subtasks.length > 0 && (
+                      <div className="space-y-1 mt-2">
+                        <h5 className="text-xs font-medium">Subtasks:</h5>
+                        {task.subtasks.map(subtask => (
+                          <p key={subtask.id} className="text-xs text-muted-foreground">- {subtask.title} ({subtask.status})</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -213,6 +164,7 @@ export function TaskBoard({ projectId }: TaskBoardProps) {
               </Button>
             </CardContent>
           </Card>
+
         ))}
       </div>
     </div>

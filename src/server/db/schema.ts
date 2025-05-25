@@ -11,6 +11,7 @@ import {
   boolean,
   jsonb,
   varchar,
+  uuid as uuid_pg, // Rename to avoid conflict with the uuid import
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
@@ -37,10 +38,10 @@ export const project_priority = pgEnum('project_priority', [
     'high'
 ]);
 
-export const task_status = pgEnum('task_status', [
+export const task_status_enum = pgEnum('task_status', [ // Renamed to avoid conflict with table name
     'todo',
     'in_progress',
-    'done',
+    'completed',
     'blocked'
 ]);
 
@@ -152,7 +153,7 @@ export const profiles = createTable("profiles", (d) => ({
 
 // User Roles Table
 export const user_roles = createTable("user_roles", (d) => ({
-    user_id: d.uuid("user_id").notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    user_id: d.varchar("user_id", { length: 255 }).notNull().references(() => profiles.id, { onDelete: 'cascade' }),
     role: user_role_enum("role").notNull(),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
@@ -161,14 +162,18 @@ export const user_roles = createTable("user_roles", (d) => ({
 
 // Projects Table
 export const projects = createTable("projects", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
     name: d.text("name").notNull(),
     description: d.text("description"),
     status: project_status("status").default('not_started'),
     priority: project_priority("priority").default('medium'),
     start_date: d.date("start_date"),
     due_date: d.date("due_date"),
-    owner_id: d.uuid("owner_id").references(() => profiles.id, { onDelete: 'set null' }),
+    owner_id: d.varchar("owner_id", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
     updated_at: d.timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
   }), (t) => [
@@ -177,7 +182,7 @@ export const projects = createTable("projects", (d) => ({
 
 // Project Tags Table
 export const project_tags = createTable("project_tags", (d) => ({
-    project_id: d.uuid("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    project_id: d.varchar("project_id", { length: 255 }).notNull().references(() => projects.id, { onDelete: 'cascade' }),
     tag_name: d.text("tag_name").notNull(),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
@@ -186,8 +191,8 @@ export const project_tags = createTable("project_tags", (d) => ({
 
 // Project Members Table
 export const project_members = createTable("project_members", (d) => ({
-    project_id: d.uuid("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-    user_id: d.uuid("user_id").notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    project_id: d.varchar("project_id", { length: 255 }).notNull().references(() => projects.id, { onDelete: 'cascade' }),
+    user_id: d.varchar("user_id", { length: 255 }).notNull().references(() => profiles.id, { onDelete: 'cascade' }),
     role: d.text("role"), // e.g., 'Lead', 'Contributor'
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
@@ -197,15 +202,15 @@ export const project_members = createTable("project_members", (d) => ({
 
 // Tasks Table
 export const tasks = createTable("tasks", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
+    id: d.varchar("id", { length: 255 }).notNull().primaryKey().$defaultFn(() => crypto.randomUUID()),
     project_id: d.uuid("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
-    title: d.text("title").notNull(),
+    title: d.varchar("title", { length: 255 }).notNull(),
     description: d.text("description"),
-    status: task_status("status").default('todo'),
+    status: task_status_enum("status").default('todo'),
     priority: task_priority("priority").default('medium'),
     due_date: d.date("due_date"),
-    assignee_id: d.uuid("assignee_id").references(() => profiles.id, { onDelete: 'set null' }),
-    reporter_id: d.uuid("reporter_id").references(() => profiles.id, { onDelete: 'set null' }),
+    assignee_id: d.varchar("assignee_id", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
+    reporter_id: d.varchar("reporter_id", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
     parent_task_id: d.uuid("parent_task_id").references(() => tasks.id, { onDelete: 'set null' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
     updated_at: d.timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
@@ -217,7 +222,7 @@ export const tasks = createTable("tasks", (d) => ({
 
 // Task Tags Table
 export const task_tags = createTable("task_tags", (d) => ({
-    task_id: d.uuid("task_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    task_id: d.varchar("task_id", { length: 255 }).notNull().references(() => tasks.id, { onDelete: 'cascade' }),
     tag_name: d.text("tag_name").notNull(),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
@@ -226,8 +231,8 @@ export const task_tags = createTable("task_tags", (d) => ({
 
 // Task Dependencies Table
 export const task_dependencies = createTable("task_dependencies", (d) => ({
-    task_id: d.uuid("task_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-    depends_on_task_id: d.uuid("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    task_id: d.varchar("task_id", { length: 255 }).notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    depends_on_task_id: d.varchar("depends_on_task_id", { length: 255 }).notNull().references(() => tasks.id, { onDelete: 'cascade' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
     primaryKey({ columns: [t.task_id, t.depends_on_task_id] }),
@@ -237,10 +242,14 @@ export const task_dependencies = createTable("task_dependencies", (d) => ({
 
 // Comments Table
 export const comments = createTable("comments", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
-    task_id: d.uuid("task_id").references(() => tasks.id, { onDelete: 'cascade' }),
-    project_id: d.uuid("project_id").references(() => projects.id, { onDelete: 'cascade' }),
-    user_id: d.uuid("user_id").references(() => profiles.id, { onDelete: 'set null' }),
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+    task_id: d.varchar("task_id", { length: 255 }).references(() => tasks.id, { onDelete: 'cascade' }),
+    project_id: d.varchar("project_id", { length: 255 }).references(() => projects.id, { onDelete: 'cascade' }),
+    user_id: d.varchar("user_id", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
     content: d.text("content").notNull(),
     parent_comment_id: d.uuid("parent_comment_id").references(() => comments.id, { onDelete: 'cascade' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
@@ -255,8 +264,8 @@ export const comments = createTable("comments", (d) => ({
 
 // Comment Mentions Table
 export const comment_mentions = createTable("comment_mentions", (d) => ({
-    comment_id: d.uuid("comment_id").notNull().references(() => comments.id, { onDelete: 'cascade' }),
-    user_id: d.uuid("user_id").notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    comment_id: d.varchar("comment_id", { length: 255 }).notNull().references(() => comments.id, { onDelete: 'cascade' }),
+    user_id: d.varchar("user_id", { length: 255 }).notNull().references(() => profiles.id, { onDelete: 'cascade' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
     primaryKey({ columns: [t.comment_id, t.user_id] }),
@@ -264,10 +273,14 @@ export const comment_mentions = createTable("comment_mentions", (d) => ({
 
 // Notifications Table
 export const notifications = createTable("notifications", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
-    user_id: d.uuid("user_id").notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+    user_id: d.varchar("user_id", { length: 255 }).notNull().references(() => profiles.id, { onDelete: 'cascade' }),
     type: notification_type("type").notNull(),
-    related_project_id: d.uuid("related_project_id").references(() => projects.id, { onDelete: 'cascade' }),
+    related_project_id: d.varchar("related_project_id", { length: 255 }).references(() => projects.id, { onDelete: 'cascade' }),
     related_task_id: d.uuid("related_task_id").references(() => tasks.id, { onDelete: 'cascade' }),
     related_comment_id: d.uuid("related_comment_id").references(() => comments.id, { onDelete: 'cascade' }),
     is_read: d.boolean("is_read").default(false),
@@ -279,11 +292,15 @@ export const notifications = createTable("notifications", (d) => ({
 
 // Activity Logs Table
 export const activity_logs = createTable("activity_logs", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
-    user_id: d.uuid("user_id").references(() => profiles.id, { onDelete: 'set null' }),
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+    user_id: d.varchar("user_id", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
     type: activity_log_type("type").notNull(),
     details: jsonb("details"),
-    related_project_id: d.uuid("related_project_id").references(() => projects.id, { onDelete: 'set null' }),
+    related_project_id: d.varchar("related_project_id", { length: 255 }).references(() => projects.id, { onDelete: 'set null' }),
     related_task_id: d.uuid("related_task_id").references(() => tasks.id, { onDelete: 'set null' }),
     created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
   }), (t) => [
@@ -292,9 +309,13 @@ export const activity_logs = createTable("activity_logs", (d) => ({
 
 // Time Entries Table
 export const time_entries = createTable("time_entries", (d) => ({
-    id: d.uuid("id").defaultRandom().primaryKey(),
-    task_id: d.uuid("task_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-    user_id: d.uuid("user_id").notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+    task_id: d.varchar("task_id", { length: 255 }).notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+    user_id: d.varchar("user_id", { length: 255 }).notNull().references(() => profiles.id, { onDelete: 'cascade' }),
     start_time: d.timestamp("start_time", { withTimezone: true }).notNull(),
     end_time: d.timestamp("end_time", { withTimezone: true }),
     notes: d.text("notes"),
@@ -305,6 +326,45 @@ export const time_entries = createTable("time_entries", (d) => ({
   }), (t) => [
     index("idx_time_entries_task_id").on(t.task_id),
     index("idx_time_entries_user_id").on(t.user_id),
+]);
+
+// Analytics Data Table
+export const analytics_data = createTable("analytics_data", (d) => ({
+    id: d
+    .varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+ project_id: d.varchar("project_id", { length: 255 }).references(() => projects.id, { onDelete: 'cascade' }),
+ user_id: d.varchar("user_id", { length: 255 }).references(() => profiles.id, { onDelete: 'cascade' }),
+ type: d.varchar("type", { length: 255 }).notNull(), // e.g., 'project_progress', 'task_completion_rate', 'user_performance'
+ data: jsonb("data").notNull(), // JSON field to store flexible analytics data
+ created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
+  }), (t) => [
+ index("idx_analytics_data_project_id").on(t.project_id),
+ index("idx_analytics_data_user_id").on(t.user_id),
+]);
+
+// Files Table
+export const files = createTable("files", (d) => ({
+ id: d
+ .varchar("id", { length: 255 })
+ .notNull()
+ .primaryKey()
+ .$defaultFn(() => crypto.randomUUID()),
+ file_name: d.varchar("file_name", { length: 255 }).notNull(),
+ file_type: d.varchar("file_type", { length: 255 }),
+ file_size: d.integer("file_size"),
+ file_url: d.text("file_url").notNull(),
+ project_id: d.varchar("project_id", { length: 255 }).references(() => projects.id, { onDelete: 'cascade' }),
+ task_id: d.varchar("task_id", { length: 255 }).references(() => tasks.id, { onDelete: 'cascade' }),
+ uploaded_by: d.varchar("uploaded_by", { length: 255 }).references(() => profiles.id, { onDelete: 'set null' }),
+ created_at: d.timestamp("created_at", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`),
+ updated_at: d.timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+}), (t) => [
+ index("idx_files_project_id").on(t.project_id),
+ index("idx_files_task_id").on(t.task_id),
+ index("idx_files_uploaded_by").on(t.uploaded_by),
 ]);
 
 
@@ -325,7 +385,32 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
-// New application relations
+// Existing posts (possibly from a previous example/iteration) - kept for now
+export const posts = createTable(
+  "post",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    name: d.varchar({ length: 256 }),
+    createdById: d
+      .varchar({ length: 255 })
+      .notNull()
+      .references(() => users.id),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("created_by_idx").on(t.createdById),
+    index("name_idx").on(t.name),
+  ]
+);
+// Existing posts relations
+export const postsRelations = relations(posts, ({ one }) => ({
+ author: one(users, { fields: [posts.createdById], references: [users.id] }),
+}));
+
 export const profilesRelations = relations(profiles, ({ one, many }) => ({
     user: one(users, { fields: [profiles.id], references: [users.id] }),
     user_roles: many(user_roles),
@@ -338,6 +423,8 @@ export const profilesRelations = relations(profiles, ({ one, many }) => ({
     notifications: many(notifications),
     activity_logs: many(activity_logs),
     time_entries: many(time_entries),
+    analytics_data: many(analytics_data), // Added relation for analytics data linked to a user
+ files: many(files, { relationName: 'files_uploaded_by' }), // Added relation for files uploaded by user
 }));
 
 export const userRolesRelations = relations(user_roles, ({ one }) => ({
@@ -352,6 +439,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     comments: many(comments), // For comments directly on projects
     notifications: many(notifications),
     activity_logs: many(activity_logs),
+ analytics_data: many(analytics_data), // Added relation for analytics data linked to a project
+ files: many(files, { relationName: 'project_files' }), // Added relation for files linked to a project
 }));
 
 export const projectTagsRelations = relations(project_tags, ({ one }) => ({
@@ -376,6 +465,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     notifications: many(notifications),
     activity_logs: many(activity_logs),
     time_entries: many(time_entries),
+ files: many(files, { relationName: 'task_files' }), // Added relation for files linked to a task
 }));
 
 export const taskTagsRelations = relations(task_tags, ({ one }) => ({
@@ -420,76 +510,15 @@ export const timeEntriesRelations = relations(time_entries, ({ one }) => ({
     user: one(profiles, { fields: [time_entries.user_id], references: [profiles.id] }),
 }));
 
-// The old 'posts' table and its relations are removed as they are not part of the new schema.
-// If they were intended to be kept, they would need to be included here.
-// For this task, we are replacing the schema content below NextAuth tables.
-// export const posts = createTable(
-//   "post",
-//   (d) => ({
-//     id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-//     name: d.varchar({ length: 256 }),
-//     createdById: d
-//       .varchar({ length: 255 })
-//       .notNull()
-//       .references(() => users.id),
-//     createdAt: d
-//       .timestamp({ withTimezone: true })
-//       .default(sql`CURRENT_TIMESTAMP`)
-//       .notNull(),
-//     updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
-//   }),
-//   (t) => [
-//     index("created_by_idx").on(t.createdById),
-//     index("name_idx").on(t.name),
-//   ]
-// );
-// export const postsRelations = relations(posts, ({ one }) => ({
-//  author: one(users, { fields: [posts.createdById], references: [users.id] }),
-// }));
-// In usersRelations, the corresponding 'posts: many(posts)' would also be removed.
-// For the current task, I've removed the posts table and its relations as per the understanding
-// that the new schema replaces the old one (below NextAuth parts).
-// The 'usersRelations' was updated to remove 'posts' and add 'sessions' and 'profile'.
-// The old `createTable = pgTableCreator((name) => \`demo_\${name}\`);` prefix `demo_` will be applied to all tables.
-// The `pgcrypto` extension is assumed to be enabled in the database as per `modified_schema.sql`.
-// Drizzle ORM does not manage database extensions; this must be ensured at the database level.
-// CHECK constraints from SQL (e.g., in task_dependencies, comments, time_entries) are not directly
-// translated into Drizzle schema. They should be created via custom migration SQL if needed.
-// The function `update_updated_at_column` and its triggers are handled by Drizzle's `.onUpdate(() => new Date())`.
+// New relations for analytics data
+export const analyticsDataRelations = relations(analytics_data, ({ one }) => ({
+ project: one(projects, { fields: [analytics_data.project_id], references: [projects.id] }),
+ user: one(profiles, { fields: [analytics_data.user_id], references: [profiles.id] }),
+}));
 
-// Final check on usersRelations:
-// The original 'posts' table was removed.
-// The `usersRelations` should not contain `posts: many(posts)`.
-// It should contain `accounts: many(accounts)`, `sessions: many(sessions)`, and `profile: one(profiles)`.
-// This was addressed in the new `usersRelations` definition.
-// Also, `emailVerified` column name in `users` table was corrected from `emailverified` to `emailVerified`.
-// And `session_user_id_idx` was corrected from `t_user_id_idx`.
-// `user_role` enum was renamed to `user_role_enum` to avoid potential naming conflicts.I have overwritten the `src/server/db/schema.ts` file with the new Drizzle ORM schema.
-
-Here's a summary of the changes and considerations:
-
-1.  **Preserved NextAuth Schema:** The existing `users`, `accounts`, `sessions`, and `verificationTokens` tables and their relations are untouched.
-2.  **Added Enums:** All SQL enums (`project_status`, `project_priority`, `task_status`, `task_priority`, `notification_type`, `activity_log_type`, `user_role`) were translated to `pgEnum`. The `user_role` enum was renamed to `user_role_enum` to prevent potential naming conflicts with a table, should one be named `user_role` in the future.
-3.  **Added Tables:** All SQL tables were translated to Drizzle's `createTable` syntax.
-    *   Column types were mapped according to the instructions (e.g., `UUID` to `d.uuid()`, `TEXT` to `d.text()`, `TIMESTAMPTZ` to `d.timestamp()`, etc.).
-    *   `defaultRandom()` was used for UUID primary keys.
-    *   `.default(sql`CURRENT_TIMESTAMP`)` was used for `created_at` fields.
-    *   `.$onUpdate(() => new Date())` was used for `updated_at` fields, replacing the need for the SQL trigger function.
-    *   **Critical `profiles` table changes implemented:**
-        *   `profiles.id` is now `d.varchar("id", { length: 255 }).primaryKey().references(() => users.id)`, linking it to `users.id`.
-        *   `profiles.email` is now `d.text("email")` (nullable).
-4.  **Defined Relationships:**
-    *   **`users` and `profiles`:**
-        *   `usersRelations` was updated to include `profile: one(profiles, { fields: [users.id], references: [profiles.id] })`. It also now correctly includes `sessions: many(sessions)`. The previous `posts: many(posts)` was removed as the `posts` table is no longer present.
-        *   `profilesRelations` was created, linking back to `users` and defining relationships to other new tables.
-    *   Comprehensive `relations` were defined for all new tables, specifying `one` and `many` relationships based on foreign keys. Relation names were added where necessary to resolve ambiguity (e.g., for multiple FKs to the same table, or for self-referencing tables like `tasks` and `comments`).
-5.  **Added Indexes:** SQL `CREATE INDEX` statements were translated into Drizzle's `index("idx_name").on(table.column)` syntax within the table definitions.
-6.  **Removed Obsolete `posts` Table:** The example `posts` table and its relations were removed from the schema, as the new schema is intended to replace it.
-7.  **Table Name Prefixing:** The existing `createTable = pgTableCreator((name) => \`demo_\${name}\`);` will prefix all table names with `demo_`.
-8.  **SQL CHECK Constraints:** CHECK constraints from the SQL (e.g., in `task_dependencies`, `comments`, `time_entries`) are noted as not directly translatable into Drizzle's schema definition. These would require custom SQL in migrations or application-level validation.
-9.  **`pgcrypto` Extension:** The `pgcrypto` extension (for `gen_random_uuid()`) is not managed by Drizzle; its presence in the database is assumed.
-10. **Minor Corrections:**
-    *   Corrected `users.emailverified` to `users.emailVerified`.
-    *   Corrected session index name `t_user_id_idx` to `session_user_id_idx`.
-
-The `src/server/db/schema.ts` file should now accurately represent the provided SQL schema in Drizzle ORM syntax, fully integrated with the existing NextAuth setup.
+// New relations for files
+export const filesRelations = relations(files, ({ one }) => ({
+ project: one(projects, { fields: [files.project_id], references: [projects.id], relationName: 'project_files' }),
+ task: one(tasks, { fields: [files.task_id], references: [tasks.id], relationName: 'task_files' }),
+ uploaded_by: one(profiles, { fields: [files.uploaded_by], references: [profiles.id], relationName: 'files_uploaded_by' }),
+}));
