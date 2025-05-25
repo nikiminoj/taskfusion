@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import Calendar from '@/components/Calendar/Calendar';
-import CalendarFilters from '@/components/Calendar/CalendarFilters';
+import Calendar from '@/components/calendar/calendar';
+import CalendarFilters from '@/components/calendar/calendar-filters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { projects } from '@/server/db/schema';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -48,7 +48,7 @@ const CalendarPage: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Page Header */}
           <div className="flex items-center justify-between">
