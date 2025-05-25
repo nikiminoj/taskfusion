@@ -36,25 +36,25 @@ const navigation = [
     title: "Overview",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: Home },
-      { title: "Projects", url: "/projects", icon: FolderOpen },
-      { title: "Tasks", url: "/tasks", icon: CheckSquare },
-      { title: "Calendar", url: "/calendar", icon: Calendar },
+      { title: "Projects", url: "/dashboard/projects", icon: FolderOpen },
+      { title: "Tasks", url: "/dashboard/tasks", icon: CheckSquare },
+      { title: "Calendar", url: "/dashboard/calendar", icon: Calendar },
     ],
   },
   {
     title: "Collaboration",
     items: [
-      { title: "Team", url: "/team", icon: Users },
-      { title: "Messages", url: "/messages", icon: MessageSquare },
-      { title: "Files", url: "/files", icon: FileText },
+      { title: "Team", url: "/dashboard/team", icon: Users },
+      { title: "Messages", url: "/dashboard/messages", icon: MessageSquare },
+      { title: "Files", url: "/dashboard/files", icon: FileText },
     ],
   },
   {
     title: "Analytics",
     items: [
-      { title: "Reports", url: "/reports", icon: BarChart3 },
-      { title: "Time Tracking", url: "/time", icon: Clock },
-      { title: "Goals", url: "/goals", icon: Target },
+      { title: "Reports", url: "/dashboard/reports", icon: BarChart3 },
+      { title: "Time Tracking", url: "/dashboard/time", icon: Clock },
+      { title: "Goals", url: "/dashboard/goals", icon: Target },
     ],
   },
 ]
